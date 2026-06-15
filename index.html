@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Oficina Pro | O.S e Checklist</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="css/style.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+
+<body>
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">OP</div>
+      <div>
+        <h2>Oficina Pro</h2>
+        <span>O.S • Checklist • OCR</span>
+      </div>
+    </div>
+
+    <nav>
+      <button class="menu-btn active" onclick="abrirTela('dashboard')">Centro de Comando</button>
+      <button class="menu-btn" onclick="abrirTela('os')">Módulo de O.S</button>
+      <button class="menu-btn" onclick="abrirTela('checklist')">Módulo de Checklist</button>
+      <button class="menu-btn" onclick="abrirTela('relatorios')">Relatórios</button>
+      <button class="menu-btn" onclick="abrirTela('config')">Configurações</button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <span>Modo oficina</span>
+      <strong>Online</strong>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 id="tituloTela">Centro de Comando</h1>
+        <p>Controle operacional de O.S, checklists, pendências e importações.</p>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="btn-secondary" onclick="atualizarTudo()">Atualizar</button>
+        <div class="status-sistema">
+          <span class="bolinha"></span>
+          Supabase conectado
+        </div>
+      </div>
+    </header>
+
+    <section id="dashboard" class="tela ativa">
+      <div class="hero-command">
+        <div>
+          <span class="tag-operacao">CENTRO DE COMANDO DA OFICINA</span>
+          <h2>Painel operacional em tempo real</h2>
+          <p>Foco em fila de serviço, atrasos, checklists com pendência e O.S geradas por inspeção.</p>
+        </div>
+
+        <div class="hero-clock">
+          <span>Última atualização</span>
+          <strong id="ultimaAtualizacao">-</strong>
+        </div>
+      </div>
+
+      <div class="comando-grid">
+        <div class="comando-card azul">
+          <span>O.S em aberto</span>
+          <strong id="cmdAberto">0</strong>
+          <small>Comunicadas, abertas e em andamento</small>
+        </div>
+
+        <div class="comando-card vermelho">
+          <span>O.S atrasadas</span>
+          <strong id="cmdAtrasadas">0</strong>
+          <small>Previsão vencida</small>
+        </div>
+
+        <div class="comando-card amarelo">
+          <span>Aguardando recursos</span>
+          <strong id="cmdAguardando">0</strong>
+          <small>Peça, mão de obra ou terceiro</small>
+        </div>
+
+        <div class="comando-card roxo">
+          <span>Checklists com pendência</span>
+          <strong id="cmdPendenciasChecklist">0</strong>
+          <small>Ressalva ou inapto</small>
+        </div>
+
+        <div class="comando-card verde">
+          <span>Conclusão de O.S</span>
+          <strong id="cmdConclusao">0%</strong>
+          <small>Finalizadas sobre total</small>
+        </div>
+      </div>
+
+      <div class="layout-operacional">
+        <div class="painel-operacional grande">
+          <div class="linha-titulo">
+            <h3>Fila operacional de O.S</h3>
+            <span class="subinfo">Ordenado por prioridade</span>
+          </div>
+          <div id="filaOS" class="fila-os"></div>
+        </div>
+
+        <div class="painel-operacional">
+          <div class="linha-titulo">
+            <h3>Alertas imediatos</h3>
+            <span class="subinfo">Atenção</span>
+          </div>
+          <div id="alertasOS" class="alertas-lista"></div>
+        </div>
+      </div>
+
+      <div class="layout-operacional">
+        <div class="painel-operacional">
+          <div class="linha-titulo">
+            <h3>Checklists recentes</h3>
+            <span class="subinfo">Últimas inspeções</span>
+          </div>
+          <div id="checklistsRecentes" class="lista-simples"></div>
+        </div>
+
+        <div class="painel-operacional">
+          <div class="linha-titulo">
+            <h3>Resumo por status</h3>
+            <span class="subinfo">O.S</span>
+          </div>
+          <div id="resumoStatusOS" class="status-resumo"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="os" class="tela">
+      <div class="abas">
+        <button class="aba-btn active" onclick="abrirSubAba('osCadastro')">Cadastro manual</button>
+        <button class="aba-btn" onclick="abrirSubAba('osImportacao')">Importar PDF de O.S</button>
+        <button class="aba-btn" onclick="abrirSubAba('osLista')">Lista de O.S</button>
+      </div>
+
+      <div id="osCadastro" class="subtela ativa">
+        <div class="painel">
+          <h3>Nova O.S manual</h3>
+
+          <form id="formOS" class="form-grid">
+            <input type="text" id="numero_os" placeholder="Número da O.S">
+            <input type="text" id="frota_os" placeholder="Frota" required>
+            <input type="text" id="equipamento_os" placeholder="Equipamento">
+            <input type="text" id="modelo_os" placeholder="Modelo">
+            <input type="text" id="placa_os" placeholder="Placa">
+            <input type="text" id="chassi_os" placeholder="Chassi / Série">
+
+            <select id="status_os" required>
+              <option value="Comunicada">Comunicada</option>
+              <option value="Aberta">Aberta</option>
+              <option value="Em andamento">Em andamento</option>
+              <option value="Aguardando peça">Aguardando peça</option>
+              <option value="Aguardando mão de obra">Aguardando mão de obra</option>
+              <option value="Aguardando terceiro">Aguardando terceiro</option>
+              <option value="Finalizada">Finalizada</option>
+              <option value="Cancelada">Cancelada</option>
+            </select>
+
+            <select id="prioridade_os" required>
+              <option value="Baixa">Baixa</option>
+              <option value="Média" selected>Média</option>
+              <option value="Alta">Alta</option>
+              <option value="Crítica">Crítica</option>
+            </select>
+
+            <input type="datetime-local" id="previsao_os">
+            <input type="text" id="centro_custo_os" placeholder="Centro de custo">
+            <input type="text" id="oficina_os" placeholder="Oficina">
+            <input type="text" id="responsavel_os" placeholder="Responsável">
+
+            <textarea id="motivo_os" placeholder="Motivo de entrada / problema informado" required></textarea>
+            <textarea id="diagnostico_os" placeholder="Diagnóstico inicial"></textarea>
+            <textarea id="observacoes_os" placeholder="Observações"></textarea>
+
+            <button type="submit" class="btn-primary">Salvar O.S</button>
+          </form>
+        </div>
+      </div>
+
+      <div id="osImportacao" class="subtela">
+        <div class="painel">
+          <div class="linha-titulo">
+            <div>
+              <h3>Importar PDF de O.S</h3>
+              <p class="texto-apoio">Leitura local do PDF com pdf.js. Nada é salvo antes da revisão.</p>
+            </div>
+          </div>
+
+          <div class="upload-zone">
+            <input type="file" id="inputPdfOS" accept="application/pdf">
+            <button class="btn-primary" onclick="lerPdfOS()">Ler PDF e abrir revisão</button>
+            <button class="btn-secondary" onclick="limparRevisaoPDF()">Limpar revisão</button>
+          </div>
+
+          <div id="statusPdfOS" class="status-processamento"></div>
+          <div id="revisaoPDFOS" class="revisao-lista"></div>
+        </div>
+      </div>
+
+      <div id="osLista" class="subtela">
+        <div class="painel">
+          <div class="linha-titulo">
+            <h3>Ordens de Serviço</h3>
+            <button onclick="carregarOS()" class="btn-secondary">Atualizar</button>
+          </div>
+
+          <div class="filtros">
+            <input type="text" id="filtroFrotaOS" placeholder="Filtrar por frota">
+            <input type="text" id="filtroNumeroOS" placeholder="Filtrar por número">
+
+            <select id="filtroStatusOS">
+              <option value="">Todos os status</option>
+              <option value="Comunicada">Comunicada</option>
+              <option value="Aberta">Aberta</option>
+              <option value="Em andamento">Em andamento</option>
+              <option value="Aguardando peça">Aguardando peça</option>
+              <option value="Aguardando mão de obra">Aguardando mão de obra</option>
+              <option value="Aguardando terceiro">Aguardando terceiro</option>
+              <option value="Finalizada">Finalizada</option>
+              <option value="Cancelada">Cancelada</option>
+            </select>
+
+            <select id="filtroPrioridadeOS">
+              <option value="">Todas as prioridades</option>
+              <option value="Baixa">Baixa</option>
+              <option value="Média">Média</option>
+              <option value="Alta">Alta</option>
+              <option value="Crítica">Crítica</option>
+            </select>
+
+            <button class="btn-secondary" onclick="carregarOS()">Filtrar</button>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Número</th>
+                  <th>Frota</th>
+                  <th>Equipamento</th>
+                  <th>Motivo</th>
+                  <th>Status</th>
+                  <th>Prioridade</th>
+                  <th>Previsão</th>
+                  <th>Origem</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaOS"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="checklist" class="tela">
+      <div class="abas">
+        <button class="aba-btn active" onclick="abrirSubAba('checkDigital')">Checklist digital</button>
+        <button class="aba-btn" onclick="abrirSubAba('checkFoto')">Ler Foto de Checklist</button>
+        <button class="aba-btn" onclick="abrirSubAba('checkLista')">Checklists realizados</button>
+      </div>
+
+      <div id="checkDigital" class="subtela ativa">
+        <div class="painel">
+          <h3>Novo Checklist Digital</h3>
+          <p class="texto-apoio">
+            Checklist no padrão real do formulário: S, NS, NA e N.
+          </p>
+
+          <form id="formChecklistDigital">
+            <div class="form-grid">
+              <input type="text" id="frota_checklist" placeholder="Frota" required>
+              <input type="text" id="modelo_checklist" placeholder="Modelo">
+              <input type="text" id="unidade_checklist" placeholder="Unidade">
+
+              <select id="tipo_checklist" required>
+                <option value="Colhedoras">Checklist - Colhedoras</option>
+                <option value="Caminhões">Checklist - Caminhões</option>
+                <option value="Reboques">Checklist - Reboques</option>
+                <option value="Tratores">Checklist - Tratores</option>
+              </select>
+
+              <input type="date" id="data_checklist">
+              <input type="text" id="horimetro_checklist" placeholder="Horímetro">
+
+              <input type="text" id="operador_a_checklist" placeholder="Operador Turno A">
+              <input type="text" id="operador_b_checklist" placeholder="Operador Turno B">
+              <input type="text" id="operador_c_checklist" placeholder="Operador Turno C">
+
+              <input type="text" id="lider_a_checklist" placeholder="Líder Turno A">
+              <input type="text" id="lider_b_checklist" placeholder="Líder Turno B">
+              <input type="text" id="lider_c_checklist" placeholder="Líder Turno C">
+
+              <textarea id="observacoes_checklist" placeholder="Observações"></textarea>
+            </div>
+
+            <div class="checklist-toolbar">
+              <button type="button" class="btn-secondary" onclick="marcarTudoChecklist('S')">Marcar tudo S</button>
+              <button type="button" class="btn-secondary" onclick="marcarTudoChecklist('NA')">Marcar tudo NA</button>
+              <button type="button" class="btn-secondary" onclick="limparChecklistDigital()">Limpar respostas</button>
+            </div>
+
+            <div class="info-box" style="margin-bottom: 14px;">
+              <strong>Padrão de respostas:</strong>
+              S = Sim/Conforme | NS = Não satisfatório | NA = Não se aplica | N = Não conforme.
+            </div>
+
+            <div id="itensChecklistDigital" class="checklist-tabela"></div>
+
+            <button type="submit" class="btn-primary">Salvar Checklist</button>
+          </form>
+        </div>
+      </div>
+
+      <div id="checkFoto" class="subtela">
+        <div class="painel">
+          <h3>Ler Foto de Checklist</h3>
+          <p class="texto-apoio">
+            Envie a frente e o verso do checklist. A I.A vai sugerir os campos,
+            as marcações S, NS, NA e N e também as pendências escritas pelo operador.
+            Revise tudo antes de salvar.
+          </p>
+
+          <div class="upload-zone">
+            <input type="file" id="inputFotoChecklist" accept="image/*" multiple>
+
+            <button class="btn-primary" onclick="lerFotoChecklistIA()">
+              Sugerir tudo com I.A
+            </button>
+
+            <button class="btn-secondary" onclick="lerFotoChecklist()">
+              Ler só com OCR tradicional
+            </button>
+
+            <button class="btn-secondary" onclick="limparRevisaoFoto()">
+              Limpar
+            </button>
+          </div>
+
+          <div id="ocrProgress" class="status-processamento"></div>
+
+          <div class="revisao-dupla">
+            <div class="documento-preview">
+              <h4>Foto original</h4>
+              <p class="texto-apoio">
+                Use esta imagem para conferir se a sugestão da I.A está correta.
+              </p>
+              <div id="previewFotosChecklist"></div>
+            </div>
+
+            <div class="revisao-campos">
+              <h4>Revisão dos dados lidos</h4>
+              <p class="texto-apoio">
+                A leitura automática é apenas uma sugestão. Corrija os campos antes de salvar.
+              </p>
+              <div id="revisaoFotoChecklist"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="checkLista" class="subtela">
+        <div class="painel">
+          <div class="linha-titulo">
+            <h3>Checklists Realizados</h3>
+            <button onclick="carregarChecklists()" class="btn-secondary">Atualizar</button>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Frota</th>
+                  <th>Modelo</th>
+                  <th>Tipo</th>
+                  <th>Resultado</th>
+                  <th>Não conformidades</th>
+                  <th>Gerou O.S</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tabelaChecklists"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="relatorios" class="tela">
+      <div class="painel">
+        <h3>Relatório para WhatsApp</h3>
+        <p class="texto-apoio">Gere uma mensagem pronta com o resumo das O.S e checklists.</p>
+
+        <div class="form-grid">
+          <input type="date" id="filtroRelDataInicio">
+          <input type="date" id="filtroRelDataFim">
+
+          <select id="filtroRelStatus">
+            <option value="">Todos os status</option>
+            <option value="Comunicada">Comunicada</option>
+            <option value="Aberta">Aberta</option>
+            <option value="Em andamento">Em andamento</option>
+            <option value="Aguardando peça">Aguardando peça</option>
+            <option value="Aguardando mão de obra">Aguardando mão de obra</option>
+            <option value="Aguardando terceiro">Aguardando terceiro</option>
+            <option value="Finalizada">Finalizada</option>
+            <option value="Cancelada">Cancelada</option>
+          </select>
+
+          <button class="btn-primary" onclick="gerarRelatorioWhatsApp()">Gerar mensagem</button>
+        </div>
+
+        <textarea id="mensagemWhatsApp" class="mensagem-whatsapp" placeholder="A mensagem será gerada aqui..."></textarea>
+
+        <div class="actions-row">
+          <button class="btn-secondary" onclick="copiarMensagemWhatsApp()">Copiar mensagem</button>
+          <button class="btn-secondary" onclick="exportarExcelResumo()">Exportar Excel</button>
+          <button class="btn-secondary" onclick="exportarPDFResumo()">Exportar PDF</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="config" class="tela">
+      <div class="painel">
+        <h3>Configurações</h3>
+        <p class="texto-apoio">Área reservada para usuários, permissões e modelos de checklist configuráveis.</p>
+
+        <div class="info-box">
+          <strong>Próxima evolução recomendada:</strong>
+          cadastrar modelos de checklist pelo próprio sistema, em vez de deixar os itens fixos no código.
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="modalDetalhes" class="modal hidden">
+    <div class="modal-content">
+      <button class="modal-close" onclick="fecharModal()">×</button>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/os.js"></script>
+  <script src="js/checklist.js"></script>
+  <script src="js/importacoes.js"></script>
+  <script src="js/relatorios.js"></script>
+</body>
+</html>
