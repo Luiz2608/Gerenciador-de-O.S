@@ -48,7 +48,7 @@ async function gerarRelatorioWhatsApp() {
   const aguardandoTerceiro = contarPorCampo(listaOS, "status", "Aguardando terceiro");
   const finalizadas = contarPorCampo(listaOS, "status", "Finalizada");
   const canceladas = contarPorCampo(listaOS, "status", "Cancelada");
-  const atrasadas = listaOS.filter(os => osEstaAtrasada(os)).length;
+  const atrasadas = listaOS.filter(os => osEstaAtrasada(os));
 
   const totalChecklist = listaChecklists.length;
   const aptos = contarPorCampo(listaChecklists, "resultado", "Apto");
@@ -58,18 +58,24 @@ async function gerarRelatorioWhatsApp() {
   const naoConformidades = listaChecklists.reduce((total, c) => total + (c.quantidade_nao_conformidades || 0), 0);
 
   const osEmAberto = listaOS.filter(os => !["Finalizada", "Cancelada"].includes(os.status));
+  const osAguardando = listaOS.filter(os => ["Aguardando peça", "Aguardando mão de obra", "Aguardando terceiro"].includes(os.status));
+  const checklistsPendentes = listaChecklists.filter(c => ["Apto com ressalva", "Inapto"].includes(c.resultado));
 
-  const checklistsPendentes = listaChecklists.filter(c =>
-    ["Apto com ressalva", "Inapto"].includes(c.resultado)
-  );
+  const periodo = dataInicio || dataFim
+    ? `${dataInicio ? dataInicio.split("-").reverse().join("/") : "início"} até ${dataFim ? dataFim.split("-").reverse().join("/") : "hoje"}`
+    : "Geral";
 
   let mensagem = "";
 
-  mensagem += "RELATÓRIO DE O.S E CHECKLIST\n\n";
-  mensagem += `Data da atualização: ${new Date().toLocaleString("pt-BR")}\n\n`;
+  mensagem += "GERENCIADOR DE O.S\n";
+  mensagem += "RELATÓRIO OPERACIONAL\n\n";
+  mensagem += `Atualização: ${new Date().toLocaleString("pt-BR")}\n`;
+  mensagem += `Período: ${periodo}\n\n`;
 
   mensagem += "RESUMO DE O.S:\n";
   mensagem += `Total de O.S: ${totalOS}\n`;
+  mensagem += `Em aberto: ${osEmAberto.length}\n`;
+  mensagem += `Atrasadas: ${atrasadas.length}\n`;
   mensagem += `Comunicadas: ${comunicadas}\n`;
   mensagem += `Abertas: ${abertas}\n`;
   mensagem += `Em andamento: ${andamento}\n`;
@@ -77,8 +83,7 @@ async function gerarRelatorioWhatsApp() {
   mensagem += `Aguardando mão de obra: ${aguardandoMaoObra}\n`;
   mensagem += `Aguardando terceiro: ${aguardandoTerceiro}\n`;
   mensagem += `Finalizadas: ${finalizadas}\n`;
-  mensagem += `Canceladas: ${canceladas}\n`;
-  mensagem += `Atrasadas: ${atrasadas}\n\n`;
+  mensagem += `Canceladas: ${canceladas}\n\n`;
 
   mensagem += "O.S EM ABERTO:\n";
 
@@ -86,7 +91,19 @@ async function gerarRelatorioWhatsApp() {
     mensagem += "Nenhuma O.S em aberto.\n";
   } else {
     osEmAberto.forEach(os => {
-      mensagem += `\nFrota ${os.frota} – ${os.numero_os || "O.S comunicada"} – ${os.motivo_entrada || "Sem motivo"} – Status: ${os.status} – Prioridade: ${os.prioridade || "-"} – Previsão: ${os.previsao_saida ? formatarData(os.previsao_saida) : "sem previsão"}\n`;
+      mensagem += `\nFrota ${os.frota || "-"} – ${os.numero_os || "O.S comunicada"}\n`;
+      mensagem += `Motivo: ${os.motivo_entrada || "Sem motivo"}\n`;
+      mensagem += `Status: ${os.status || "-"} | Prioridade: ${os.prioridade || "-"}\n`;
+      mensagem += `Previsão: ${os.previsao_saida ? formatarData(os.previsao_saida) : "sem previsão"}\n`;
+    });
+  }
+
+  mensagem += "\nO.S AGUARDANDO RECURSOS:\n";
+  if (osAguardando.length === 0) {
+    mensagem += "Nenhuma O.S aguardando peça, mão de obra ou terceiro.\n";
+  } else {
+    osAguardando.forEach(os => {
+      mensagem += `\nFrota ${os.frota || "-"} – ${os.status || "-"} – ${os.motivo_entrada || "Sem motivo"} – Previsão: ${os.previsao_saida ? formatarData(os.previsao_saida) : "sem previsão"}\n`;
     });
   }
 
@@ -104,7 +121,9 @@ async function gerarRelatorioWhatsApp() {
     mensagem += "Nenhum checklist com pendência.\n";
   } else {
     checklistsPendentes.forEach(item => {
-      mensagem += `\nFrota ${item.frota} – ${item.tipo_checklist} – Resultado: ${item.resultado} – NC: ${item.quantidade_nao_conformidades || 0} – Gerou O.S: ${item.gerou_os ? "Sim" : "Não"}\n`;
+      mensagem += `\nFrota ${item.frota || "-"} – Frente/Local: ${item.frente || "-"}\n`;
+      mensagem += `Tipo: ${item.tipo_checklist || "-"} | Resultado: ${item.resultado || "-"}\n`;
+      mensagem += `NC: ${item.quantidade_nao_conformidades || 0} | Gerou O.S: ${item.gerou_os ? "Sim" : "Não"}\n`;
     });
   }
 
@@ -155,6 +174,7 @@ async function exportarExcelResumo() {
 
   const wsChecklist = XLSX.utils.json_to_sheet((checklists || []).map(c => ({
     frota: c.frota,
+    frente: c.frente,
     modelo: c.modelo,
     tipo: c.tipo_checklist,
     resultado: c.resultado,

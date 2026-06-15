@@ -771,3 +771,106 @@ pre {
     gap: 14px;
   }
 }
+/* Melhorias Gerenciador de O.S */
+.acao-excluir {
+  background: rgba(239,68,68,0.16) !important;
+  color: #fecaca !important;
+}
+
+#botaoTema {
+  min-width: 145px;
+}
+
+body.tema-claro {
+  background:
+    radial-gradient(circle at top right, rgba(34,197,94,0.14), transparent 32%),
+    radial-gradient(circle at bottom left, rgba(56,189,248,0.10), transparent 30%),
+    #f4f7fb;
+  color: #0f172a;
+}
+
+body.tema-claro .sidebar,
+body.tema-claro .topbar,
+body.tema-claro .painel,
+body.tema-claro .painel-operacional,
+body.tema-claro .comando-card,
+body.tema-claro .hero-clock,
+body.tema-claro .modal-content {
+  background: rgba(255,255,255,0.92);
+  border-color: rgba(15,23,42,0.10);
+  color: #0f172a;
+  box-shadow: 0 14px 40px rgba(15,23,42,0.08);
+}
+
+body.tema-claro .hero-command {
+  background: linear-gradient(135deg, rgba(34,197,94,0.12), rgba(255,255,255,0.94));
+  border-color: rgba(34,197,94,0.24);
+}
+
+body.tema-claro .logo h2,
+body.tema-claro .topbar h1,
+body.tema-claro .painel h3,
+body.tema-claro .painel-operacional h3,
+body.tema-claro .hero-command h2,
+body.tema-claro .comando-card strong,
+body.tema-claro .modal-content h2,
+body.tema-claro .modal-content h3 {
+  color: #0f172a;
+}
+
+body.tema-claro .logo span,
+body.tema-claro .topbar p,
+body.tema-claro .texto-apoio,
+body.tema-claro .subinfo,
+body.tema-claro th,
+body.tema-claro .comando-card span,
+body.tema-claro .comando-card small,
+body.tema-claro .hero-command p,
+body.tema-claro .hero-clock span,
+body.tema-claro .sidebar-footer span {
+  color: #64748b;
+}
+
+body.tema-claro input,
+body.tema-claro select,
+body.tema-claro textarea,
+body.tema-claro pre {
+  background: #ffffff;
+  border-color: rgba(15,23,42,0.14);
+  color: #0f172a;
+}
+
+body.tema-claro .menu-btn {
+  color: #334155;
+}
+
+body.tema-claro .menu-btn:hover,
+body.tema-claro .menu-btn.active {
+  background: rgba(34,197,94,0.12);
+  color: #15803d;
+}
+
+body.tema-claro .btn-secondary,
+body.tema-claro .acao-mini {
+  background: rgba(15,23,42,0.07);
+  color: #0f172a;
+}
+
+body.tema-claro td,
+body.tema-claro th {
+  border-bottom-color: rgba(15,23,42,0.09);
+}
+
+body.tema-claro .sidebar-footer,
+body.tema-claro .info-box,
+body.tema-claro .lista-item,
+body.tema-claro .item-fila,
+body.tema-claro .alerta-item,
+body.tema-claro .grupo-checklist {
+  background: rgba(248,250,252,0.90);
+  border-color: rgba(15,23,42,0.09);
+}
+
+body.tema-claro .modal-close {
+  color: #0f172a;
+}

@@ -131,6 +131,7 @@ function montarAcoesOS(os) {
   }
 
   html += `<button class="acao-mini" onclick="verHistorico('${os.id}')">Histórico</button>`;
+  html += `<button class="acao-mini acao-excluir" onclick="excluirOS('${os.id}')">Excluir</button>`;
 
   return html;
 }
@@ -389,4 +390,112 @@ async function verHistorico(id) {
   `).join("");
 
   abrirModal(`<h2>Histórico</h2>${html}`);
+}
+
+async function excluirOS(id) {
+  if (!id) {
+    alert("Não foi possível identificar a O.S para exclusão.");
+    return;
+  }
+
+  const { data: osAntiga, error: erroBusca } = await db
+    .from("ordens_servico")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (erroBusca || !osAntiga) {
+    console.error("Erro ao buscar O.S antes da exclusão:", erroBusca);
+    alert("Não foi possível carregar esta O.S para excluir.");
+    return;
+  }
+
+  const numero = osAntiga.numero_os || "Comunicada";
+  const frota = osAntiga.frota || "-";
+
+  const primeiraConfirmacao = confirm(
+    `Tem certeza que deseja excluir esta O.S?\n\nO.S: ${numero}\nFrota: ${frota}\n\nUse esta opção apenas para lançamento errado. Para ocorrência real, prefira Cancelar.`
+  );
+
+  if (!primeiraConfirmacao) return;
+
+  const textoConfirmacao = prompt("Para confirmar a exclusão definitiva, digite EXCLUIR:");
+  if ((textoConfirmacao || "").trim().toUpperCase() !== "EXCLUIR") {
+    alert("Exclusão cancelada.");
+    return;
+  }
+
+  try {
+    if (osAntiga.checklist_id) {
+      await db
+        .from("checklist_execucoes")
+        .update({ gerou_os: false })
+        .eq("id", osAntiga.checklist_id);
+    }
+
+    await db
+      .from("checklist_respostas")
+      .update({ gerou_os: false, os_id: null })
+      .eq("os_id", id);
+
+    await db
+      .from("checklist_pendencias")
+      .update({ gerou_os: false, os_id: null })
+      .eq("os_id", id);
+
+    const { data: anexos } = await db
+      .from("anexos")
+      .select("caminho_arquivo")
+      .eq("origem", "ordens_servico")
+      .eq("origem_id", id);
+
+    const caminhosAnexos = (anexos || [])
+      .map(anexo => anexo.caminho_arquivo)
+      .filter(Boolean);
+
+    if (caminhosAnexos.length > 0) {
+      await db.storage.from("anexos").remove(caminhosAnexos);
+    }
+
+    await db
+      .from("anexos")
+      .delete()
+      .eq("origem", "ordens_servico")
+      .eq("origem_id", id);
+
+    await db
+      .from("historico_alteracoes")
+      .delete()
+      .eq("origem", "ordens_servico")
+      .eq("origem_id", id);
+
+    const { data: excluidas, error: erroExclusao } = await db
+      .from("ordens_servico")
+      .delete()
+      .eq("id", id)
+      .select("id");
+
+    if (erroExclusao) {
+      console.error("Erro ao excluir O.S:", erroExclusao);
+      alert(`Erro ao excluir O.S: ${erroExclusao.message || "verifique as permissões no Supabase."}`);
+      return;
+    }
+
+    if (!excluidas || excluidas.length === 0) {
+      alert(
+        "A O.S não foi excluída. Normalmente isso acontece quando falta permissão de DELETE no Supabase. Execute o arquivo sql_atualizacao_supabase.sql e tente novamente."
+      );
+      return;
+    }
+
+    alert("O.S excluída com sucesso.");
+
+    if (typeof atualizarTudo === "function") await atualizarTudo();
+    else if (typeof carregarOS === "function") await carregarOS();
+
+    if (typeof fecharModal === "function") fecharModal();
+  } catch (erro) {
+    console.error("Erro inesperado ao excluir O.S:", erro);
+    alert("Erro inesperado ao excluir O.S. Veja o console do navegador.");
+  }
 }

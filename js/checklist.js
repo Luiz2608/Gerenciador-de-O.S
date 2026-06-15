@@ -282,6 +282,7 @@ function coletarDadosChecklistDigital() {
     frota: pegarCampo("frota_checklist"),
     modelo: pegarCampo("modelo_checklist"),
     unidade: pegarCampo("unidade_checklist"),
+    frente: pegarCampo("frente_checklist"),
     tipo_checklist: pegarCampo("tipo_checklist") || "Colhedoras",
     data_execucao: pegarCampo("data_checklist") || new Date().toISOString().slice(0, 10),
     horimetro: pegarCampo("horimetro_checklist"),
@@ -366,7 +367,7 @@ async function salvarChecklistCompleto(execucao, respostas, arquivoFoto = null, 
 
   if (erroChecklist) {
     console.error(erroChecklist);
-    alert("Erro ao salvar checklist.");
+    alert("Erro ao salvar checklist: " + (erroChecklist.message || JSON.stringify(erroChecklist)));
     return;
   }
 
@@ -474,7 +475,7 @@ async function gerarOSPorChecklist(checklistId, checklist, naoConformes, pendenc
     naoConformes.some(r => r.criticidade === "Crítico") ||
     pendencias.some(p => p.criticidade === "Crítico");
 
-  let motivo = `Checklist da frota ${checklist.frota} com pendência.`;
+  let motivo = `Checklist da frota ${checklist.frota}${checklist.frente ? ", Frente/Local " + checklist.frente : ""} com pendência.`;
 
   if (resumoNaoConformes) {
     motivo += ` Itens não conformes: ${resumoNaoConformes}.`;
@@ -494,7 +495,7 @@ async function gerarOSPorChecklist(checklistId, checklist, naoConformes, pendenc
     prioridade: existeCritico ? "Crítica" : "Média",
     origem: "Checklist",
     checklist_id: checklistId,
-    observacoes: checklist.observacoes || checklist.observacoes_ia || "",
+    observacoes: [checklist.frente ? `Frente/Local: ${checklist.frente}` : "", checklist.observacoes || checklist.observacoes_ia || ""].filter(Boolean).join("\n"),
     data_ultima_movimentacao: new Date().toISOString()
   };
 
@@ -553,7 +554,7 @@ async function carregarChecklists() {
   tabela.innerHTML = "";
 
   if (!data || data.length === 0) {
-    tabela.innerHTML = `<tr><td colspan="8">Nenhum checklist cadastrado.</td></tr>`;
+    tabela.innerHTML = `<tr><td colspan="9">Nenhum checklist cadastrado.</td></tr>`;
     return;
   }
 
@@ -563,12 +564,17 @@ async function carregarChecklists() {
     linha.innerHTML = `
       <td>${dataCurta(checklist.data_execucao || checklist.criado_em)}</td>
       <td>${htmlSeguro(checklist.frota || "-")}</td>
+      <td>${htmlSeguro(checklist.frente || "-")}</td>
       <td>${htmlSeguro(checklist.modelo || "-")}</td>
       <td>${htmlSeguro(checklist.tipo_checklist || "-")}</td>
       <td>${badgeSeguro(checklist.resultado)}</td>
       <td>${checklist.quantidade_nao_conformidades || 0}</td>
       <td>${checklist.gerou_os ? "Sim" : "Não"}</td>
-      <td><button class="acao-mini" onclick="visualizarChecklist('${checklist.id}')">Ver</button></td>
+      <td>
+        <button class="acao-mini" onclick="visualizarChecklist('${checklist.id}')">Ver</button>
+        <button class="acao-mini" onclick="exportarChecklistPDF('${checklist.id}')">PDF</button>
+        <button class="acao-mini" onclick="copiarResumoChecklistSupervisor('${checklist.id}')">Copiar</button>
+      </td>
     `;
 
     tabela.appendChild(linha);
@@ -623,9 +629,15 @@ async function visualizarChecklist(id) {
 
     ${checklist.foto_url ? `<p style="margin-top:12px;"><a href="${checklist.foto_url}" target="_blank">Abrir foto original</a></p>` : ""}
 
+    <div class="actions-row" style="margin-top:14px;">
+      <button class="btn-secondary" onclick="exportarChecklistPDF('${id}')">Exportar PDF</button>
+      <button class="btn-secondary" onclick="copiarResumoChecklistSupervisor('${id}')">Copiar resumo</button>
+    </div>
+
     <div class="form-grid" style="margin-top:16px;">
       <input value="Modelo: ${htmlSeguro(checklist.modelo || "-")}" readonly>
       <input value="Unidade: ${htmlSeguro(checklist.unidade || "-")}" readonly>
+      <input value="Frente/Local: ${htmlSeguro(checklist.frente || "-")}" readonly>
       <input value="Horímetro: ${htmlSeguro(checklist.horimetro || "-")}" readonly>
     </div>
 
@@ -652,6 +664,154 @@ async function visualizarChecklist(id) {
 
   if (typeof abrirModal === "function") abrirModal(html);
   else alert("Detalhes carregados. Seu projeto atual não possui modal de visualização.");
+}
+
+
+async function buscarChecklistCompleto(id) {
+  const { data: checklist, error } = await db
+    .from("checklist_execucoes")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error || !checklist) {
+    alert("Erro ao carregar checklist.");
+    return null;
+  }
+
+  const { data: respostas } = await db
+    .from("checklist_respostas")
+    .select("*")
+    .eq("checklist_id", id)
+    .order("grupo");
+
+  const { data: pendencias } = await db
+    .from("checklist_pendencias")
+    .select("*")
+    .eq("checklist_id", id)
+    .order("criado_em");
+
+  const { data: ordens } = await db
+    .from("ordens_servico")
+    .select("numero_os, status, prioridade, criado_em")
+    .eq("checklist_id", id)
+    .order("criado_em", { ascending: false });
+
+  return {
+    checklist,
+    respostas: respostas || [],
+    pendencias: pendencias || [],
+    ordens: ordens || []
+  };
+}
+
+function montarResumoChecklistSupervisor(dados) {
+  const { checklist, respostas, pendencias, ordens } = dados;
+  const naoConformes = respostas.filter(r => ["NS", "N"].includes(r.resposta));
+  const osGerada = ordens && ordens.length > 0 ? ordens[0] : null;
+
+  const linhas = [];
+  linhas.push("CHECKLIST OPERACIONAL");
+  linhas.push("");
+  linhas.push(`Data: ${dataCurta(checklist.data_execucao || checklist.criado_em)}`);
+  linhas.push(`Frota: ${checklist.frota || "-"}`);
+  linhas.push(`Frente/Local: ${checklist.frente || "-"}`);
+  linhas.push(`Modelo: ${checklist.modelo || "-"}`);
+  linhas.push(`Unidade: ${checklist.unidade || "-"}`);
+  linhas.push(`Tipo: ${checklist.tipo_checklist || "-"}`);
+  linhas.push(`Horímetro: ${checklist.horimetro || "-"}`);
+  linhas.push("");
+  linhas.push(`Resultado: ${checklist.resultado || "-"}`);
+  linhas.push(`Não conformidades: ${checklist.quantidade_nao_conformidades || 0}`);
+  linhas.push(`Gerou O.S: ${checklist.gerou_os ? "Sim" : "Não"}${osGerada ? " - " + (osGerada.numero_os || "Comunicada") + " / " + osGerada.status : ""}`);
+  linhas.push("");
+
+  linhas.push("OPERADORES / LÍDERES");
+  linhas.push(`Operador A: ${checklist.operador_turno_a || "-"}`);
+  linhas.push(`Operador B: ${checklist.operador_turno_b || "-"}`);
+  linhas.push(`Operador C: ${checklist.operador_turno_c || "-"}`);
+  linhas.push(`Líder A: ${checklist.lider_turno_a || "-"}`);
+  linhas.push(`Líder B: ${checklist.lider_turno_b || "-"}`);
+  linhas.push(`Líder C: ${checklist.lider_turno_c || "-"}`);
+  linhas.push("");
+
+  linhas.push("PENDÊNCIAS / NÃO CONFORMIDADES");
+
+  if (naoConformes.length === 0 && pendencias.length === 0) {
+    linhas.push("Nenhuma pendência registrada.");
+  }
+
+  naoConformes.forEach((r, index) => {
+    linhas.push(`${index + 1}. ${r.grupo || "-"} / ${r.item || "-"} / Turno ${r.turno || "-"}`);
+    linhas.push(`   Resposta: ${r.resposta || "-"} | Criticidade: ${r.criticidade || "-"}`);
+    if (r.observacao) linhas.push(`   Observação: ${r.observacao}`);
+  });
+
+  pendencias.forEach((p, index) => {
+    linhas.push(`${naoConformes.length + index + 1}. ${p.descricao || "-"}`);
+    linhas.push(`   Grupo/Item: ${p.grupo_sugerido || "-"} / ${p.item_sugerido || "-"} | Criticidade: ${p.criticidade || "Normal"}`);
+  });
+
+  if (checklist.observacoes) {
+    linhas.push("");
+    linhas.push("OBSERVAÇÕES GERAIS");
+    linhas.push(checklist.observacoes);
+  }
+
+  return linhas.join("\n");
+}
+
+async function copiarResumoChecklistSupervisor(id) {
+  const dados = await buscarChecklistCompleto(id);
+  if (!dados) return;
+
+  const resumo = montarResumoChecklistSupervisor(dados);
+
+  try {
+    await navigator.clipboard.writeText(resumo);
+  } catch (erro) {
+    const area = document.createElement("textarea");
+    area.value = resumo;
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand("copy");
+    area.remove();
+  }
+
+  alert("Resumo do checklist copiado para enviar ao supervisor.");
+}
+
+async function exportarChecklistPDF(id) {
+  const dados = await buscarChecklistCompleto(id);
+  if (!dados) return;
+
+  if (!window.jspdf) {
+    alert("Biblioteca jsPDF não carregada.");
+    return;
+  }
+
+  const resumo = montarResumoChecklistSupervisor(dados);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.setFontSize(14);
+  doc.text("Gerenciador de O.S", 15, 14);
+  doc.setFontSize(11);
+
+  const linhas = doc.splitTextToSize(resumo, 180);
+  let y = 24;
+
+  linhas.forEach(linha => {
+    if (y > 280) {
+      doc.addPage();
+      y = 15;
+    }
+    doc.text(linha, 15, y);
+    y += 6;
+  });
+
+  const nome = normalizarNomeArquivo(`checklist_frota_${dados.checklist.frota || "sem_frota"}_${dados.checklist.data_execucao || "sem_data"}.pdf`);
+  doc.save(nome);
 }
 
 function pegarCampo(id) {

@@ -178,7 +178,7 @@ Analise as fotos de um checklist físico de colhedoras preenchido à caneta.
 A foto pode conter frente e verso. O formulário usa colunas de resposta por turno A, B e C.
 
 Tarefas:
-1. Ler campos principais: frota, data, modelo, unidade, horímetro, operadores e líderes.
+1. Ler campos principais: frota, frente/local, data, modelo, unidade, horímetro, operadores e líderes.
 2. Ler as marcações do checklist: S, NS, NA e N.
 3. Ler pendências manuscritas escritas pelo operador.
 4. Associar pendências ao grupo/item mais provável.
@@ -230,6 +230,7 @@ function schemaChecklistIA() {
       data_execucao: { type: "string" },
       modelo: { type: "string" },
       unidade: { type: "string" },
+      frente: { type: "string" },
       horimetro: { type: "string" },
       operador_turno_a: { type: "string" },
       operador_turno_b: { type: "string" },
@@ -285,6 +286,7 @@ function schemaChecklistIA() {
       "data_execucao",
       "modelo",
       "unidade",
+      "frente",
       "horimetro",
       "operador_turno_a",
       "operador_turno_b",
@@ -334,6 +336,7 @@ function renderizarRevisaoChecklistIA(dados) {
         <input id="foto_frota" value="${htmlSeguro(dados.frota || "")}" placeholder="Frota" class="${!dados.frota ? "campo-baixa-confianca" : ""}">
         <input id="foto_modelo" value="${htmlSeguro(dados.modelo || "")}" placeholder="Modelo">
         <input id="foto_unidade" value="${htmlSeguro(dados.unidade || "")}" placeholder="Unidade">
+        <input id="foto_frente" value="${htmlSeguro(dados.frente || dados.frente_local || "")}" placeholder="Frente / Local">
 
         <input id="foto_data" value="${normalizarDataIA(dados.data_execucao)}" type="date">
         <input id="foto_horimetro" value="${htmlSeguro(dados.horimetro || "")}" placeholder="Horímetro">
@@ -444,6 +447,7 @@ async function salvarChecklistFotoRevisadoIA() {
     frota: pegarCampo("foto_frota"),
     modelo: pegarCampo("foto_modelo"),
     unidade: pegarCampo("foto_unidade"),
+    frente: pegarCampo("foto_frente"),
     tipo_checklist: pegarCampo("foto_tipo") || "Colhedoras",
     data_execucao: pegarCampo("foto_data") || new Date().toISOString().slice(0, 10),
     horimetro: pegarCampo("foto_horimetro"),
@@ -544,6 +548,7 @@ function extrairCabecalhoOCRTradicional(texto) {
     data_execucao: normalizarDataIA(pegarRegex(t, /(\d{1,2}\/\d{1,2}\/\d{2,4})/i)),
     horimetro: pegarRegex(t, /Hor[ií]metro\s*:?\s*([0-9.,]+)/i),
     unidade: pegarRegex(t, /Unidade\s*:?\s*([A-ZÀ-Úa-zà-ú\s()]+?)\s+Hor/i),
+    frente: pegarRegex(t, /(?:Frente|Local)\s*:?\s*([A-ZÀ-Úa-zà-ú0-9 .\/-]{2,40})/i),
     observacoes_gerais: "",
     conclusao: "",
     confianca_geral: 35,
@@ -578,6 +583,7 @@ async function salvarChecklistFotoRevisadoOCR() {
     frota: pegarCampo("foto_frota"),
     modelo: pegarCampo("foto_modelo"),
     unidade: pegarCampo("foto_unidade"),
+    frente: pegarCampo("foto_frente"),
     tipo_checklist: pegarCampo("foto_tipo") || "Colhedoras",
     data_execucao: pegarCampo("foto_data") || new Date().toISOString().slice(0, 10),
     horimetro: pegarCampo("foto_horimetro"),
@@ -743,6 +749,7 @@ Analise as imagens enviadas. Elas são fotos de checklist físico de colhedoras 
 
 Você deve ler:
 - frota
+- frente/local onde o equipamento está
 - data de execução
 - modelo
 - unidade
@@ -833,6 +840,7 @@ Formato obrigatório da resposta:
   "data_execucao": "",
   "modelo": "",
   "unidade": "",
+  "frente": "",
   "horimetro": "",
   "operador_turno_a": "",
   "operador_turno_b": "",

@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", async () => {
+  aplicarTemaSalvo();
   configurarBibliotecas();
   preencherDataChecklist();
   renderizarChecklistDigital();
@@ -209,7 +210,7 @@ function montarChecklistsRecentes(lista) {
 
     div.innerHTML = `
       <strong>Frota ${escapeHtml(item.frota)} – ${escapeHtml(item.tipo_checklist)}</strong>
-      <span>${formatarData(item.criado_em)} | Resultado: ${escapeHtml(item.resultado || "-")} | NC: ${item.quantidade_nao_conformidades || 0}</span>
+      <span>${formatarData(item.criado_em)} | Frente: ${escapeHtml(item.frente || "-")} | Resultado: ${escapeHtml(item.resultado || "-")} | NC: ${item.quantidade_nao_conformidades || 0}</span>
     `;
 
     container.appendChild(div);
@@ -361,4 +362,25 @@ function abrirModal(html) {
 function fecharModal() {
   document.getElementById("modalDetalhes").classList.add("hidden");
   document.getElementById("modalBody").innerHTML = "";
+}
+
+function aplicarTemaSalvo() {
+  const tema = localStorage.getItem("tema_gerenciador_os") || "escuro";
+  document.body.classList.toggle("tema-claro", tema === "claro");
+  atualizarBotaoTema(tema);
+}
+
+function alternarTema() {
+  const claro = !document.body.classList.contains("tema-claro");
+  const tema = claro ? "claro" : "escuro";
+  document.body.classList.toggle("tema-claro", claro);
+  localStorage.setItem("tema_gerenciador_os", tema);
+  atualizarBotaoTema(tema);
+}
+
+function atualizarBotaoTema(tema) {
+  const botao = document.getElementById("botaoTema");
+  if (!botao) return;
+  botao.textContent = tema === "claro" ? "☀️ Tema claro" : "🌙 Tema escuro";
+  botao.title = tema === "claro" ? "Clique para voltar ao tema escuro" : "Clique para usar o tema claro";
 }

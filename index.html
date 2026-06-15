@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Oficina Pro | O.S e Checklist</title>
+  <title>Gerenciador de O.S | Checklist e Relatórios</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <link rel="stylesheet" href="css/style.css">
@@ -17,10 +17,10 @@
 <body>
   <aside class="sidebar">
     <div class="logo">
-      <div class="logo-icon">OP</div>
+      <div class="logo-icon">OS</div>
       <div>
-        <h2>Oficina Pro</h2>
-        <span>O.S • Checklist • OCR</span>
+        <h2>Gerenciador de O.S</h2>
+        <span>O.S • Checklist • Relatórios</span>
       </div>
     </div>
 
@@ -32,10 +32,6 @@
       <button class="menu-btn" onclick="abrirTela('config')">Configurações</button>
     </nav>
 
-    <div class="sidebar-footer">
-      <span>Modo oficina</span>
-      <strong>Online</strong>
-    </div>
   </aside>
 
   <main class="main">
@@ -46,18 +42,15 @@
       </div>
 
       <div class="topbar-actions">
+        <button id="botaoTema" class="btn-secondary" onclick="alternarTema()">🌙 Tema escuro</button>
         <button class="btn-secondary" onclick="atualizarTudo()">Atualizar</button>
-        <div class="status-sistema">
-          <span class="bolinha"></span>
-          Supabase conectado
-        </div>
       </div>
     </header>
 
     <section id="dashboard" class="tela ativa">
       <div class="hero-command">
         <div>
-          <span class="tag-operacao">CENTRO DE COMANDO DA OFICINA</span>
+          <span class="tag-operacao">CENTRO DE COMANDO</span>
           <h2>Painel operacional em tempo real</h2>
           <p>Foco em fila de serviço, atrasos, checklists com pendência e O.S geradas por inspeção.</p>
         </div>
